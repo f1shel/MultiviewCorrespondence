@@ -1,0 +1,10 @@
+_*/
+bin_*/
+.idea/
+cmake-build-*/
+build/
+src/ext/downloaded_resources/
+src/ext/bin_*/
+scenes/
+log_asuna.txt
+.vscode/

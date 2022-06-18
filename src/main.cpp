@@ -7,7 +7,7 @@ int main(int argc, char** argv) {
   // setup some basic things for the sample, logging file for example
   NVPSystem system(PROJECT_NAME);
 
-  LOG_INFO(">>> Asuna Renderer by f1shel <<<");
+  LOG_INFO(">>> {} by f1shel <<<", PROJECT_NAME);
 
   InputParser parser(argc, argv);
   if (parser.exist("--help")) {
@@ -19,7 +19,6 @@ int main(int argc, char** argv) {
   if (parser.exist("--offline")) tis.offline = true;
   tis.outputname = parser.getString("--out", "asuna_out.hdr");
   tis.scenefile = parser.getString("--scene", "PLEASE_SET_SCENE_PATH");
-  tis.sceneSpp = parser.getInt("--spp");
 
   Tracer asuna;
   asuna.init(tis);

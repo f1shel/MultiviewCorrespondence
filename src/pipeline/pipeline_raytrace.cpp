@@ -174,7 +174,7 @@ void PipelineRaytrace::createRtPipeline() {
   NAME2_VK(stage.module, "Shadowmiss");
   // ClosetHit:BrdfLambertian
   stage.module = nvvk::createShaderModule(
-      m_device, nvh::loadFile("../shaders/raytrace.brdf_lambertian.rchit.spv",
+      m_device, nvh::loadFile("../shaders/raytrace.correspondence.rchit.spv",
                               true, {root}));
   stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
   stages[NumStages + 0] = stage;

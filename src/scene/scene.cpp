@@ -209,6 +209,5 @@ void Scene::fitCamera() {
   CameraManip.fit(m_dimensions.min, m_dimensions.max, true, false,
                   m_size.width / static_cast<float>(m_size.height));
   auto cam = CameraManip.getCamera();
-  m_shots.emplace_back(CameraShot{cam.ctr, cam.eye, cam.up, nvmath::mat4f_zero,
-                                  nvmath::mat4f_id});
+  m_shots.emplace_back(CameraShot{cam.ctr, cam.eye, cam.up, nvmath::mat4f_zero});
 }

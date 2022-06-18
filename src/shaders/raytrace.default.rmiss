@@ -16,7 +16,5 @@ layout(set = RtScene, binding = SceneCamera)     uniform _Camera    { GpuCamera 
 
 void main() {
   // Stop ray if it does not hit anything
-  payload.pRec.stop = true;
-
-  payload.pRec.radiance = vec3(0);
+  payload.hitSomething = false;
 }

@@ -1,13 +1,19 @@
-#ifndef LAYOUTS_GLSL
-#define LAYOUTS_GLSL
+#version 460
+#extension GL_EXT_debug_printf : require
+#extension GL_EXT_ray_tracing : require
+#extension GL_EXT_nonuniform_qualifier : enable
+#extension GL_EXT_scalar_block_layout : require
+#extension GL_GOOGLE_include_directive : require
+#extension GL_EXT_buffer_reference2 : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
 
-#include "../../shared/binding.h"
-#include "../../shared/pushconstant.h"
-#include "../../shared/instance.h"
-#include "../../shared/vertex.h"
-#include "../../shared/camera.h"
-#include "math.glsl"
-#include "structs.glsl"
+#include "../shared/binding.h"
+#include "../shared/pushconstant.h"
+#include "../shared/instance.h"
+#include "../shared/vertex.h"
+#include "../shared/camera.h"
+#include "utils/math.glsl"
+#include "utils/structs.glsl"
 
 // clang-format off
 layout(buffer_reference, scalar) buffer Vertices  { GpuVertex v[];   };
@@ -67,6 +73,12 @@ HitState getHitState() {
 
   return state;
 }
-// clang-format on
 
-#endif
+void main() {
+  // Get hit record
+  HitState state = getHitState();
+
+  payload.hitSomething = true;
+  payload.hitPos = state.pos;
+  payload.ffnormal = state.ffN;
+}

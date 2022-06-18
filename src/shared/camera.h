@@ -15,12 +15,9 @@ END_ENUM();
 struct GpuCamera {
   mat4 rasterToCamera;
   mat4 cameraToWorld;
-  mat4 envTransform;
-  vec4 fxfycxcy;        // [focal_xy, center_xy], for opencv model
+  mat4 worldToRaster;
+  vec4 fxfycxcy;  // [focal_xy, center_xy], for opencv model
   uint type;            // camera type
-  float aperture;       // aspect, for thin len model
-  float focalDistance;  // focal distance, for thin len model
-  float padding;
 };
 
 #endif

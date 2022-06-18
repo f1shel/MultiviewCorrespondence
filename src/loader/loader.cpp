@@ -221,8 +221,5 @@ void Loader::addShot(const nlohmann::json& shotJson) {
   shot.up = up;
   shot.lookat = lookat;
 
-  if (shotJson.contains("env_toworld"))
-    parseToWorld(shotJson["env_toworld"], shot.envTransform, true);
-
   m_pScene->addShot(shot);
 }

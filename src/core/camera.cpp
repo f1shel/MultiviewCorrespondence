@@ -70,7 +70,6 @@ void Camera::setToWorld(CameraShot& shot) {
     // TODO: set CameraManip's eye up lookat according to m_view
   } else
     setToWorld(shot.lookat, shot.eye, shot.up);
-  setEnvRotate(shot.envTransform);
 }
 
 void Camera::adaptFilm() {
@@ -89,11 +88,11 @@ GpuCamera CameraPerspective::toGpuStruct() {
   static GpuCamera cam;
   auto size = getFilmSize();
   cam.type = getType();
-  cam.cameraToWorld = nvmath::invert_rot_trans(getView());
-  cam.rasterToCamera = nvmath::invert(
-      cameraToRasterTransform(getFilmSize(), getFov(), 0.1, 100.0));
-  cam.envTransform = m_envTransform;
-  cam.focalDistance = m_focalDistance;
-  cam.aperture = m_aperture;
+  mat4 worldToCamera = getView();
+  cam.cameraToWorld = nvmath::invert_rot_trans(worldToCamera);
+  mat4 cameraToRaster =
+      cameraToRasterTransform(getFilmSize(), getFov(), 0.1, 100.0);
+  cam.rasterToCamera = nvmath::invert(cameraToRaster);
+  cam.worldToRaster = cameraToRaster * worldToCamera;
   return cam;
 }

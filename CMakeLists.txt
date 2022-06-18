@@ -167,6 +167,7 @@ file(GLOB SRC_SHADERS_RAYTRACE
     ${SOURCE_DIR}/shaders/raytrace.*.rgen
     ${SOURCE_DIR}/shaders/raytrace.*.rahit
     ${SOURCE_DIR}/shaders/raytrace.*.rmiss
+    ${SOURCE_DIR}/shaders/raytrace.*.rchit
 )
 
 file(GLOB SRC_SHADERS_RAYTRACE_BXDF_UTILS
@@ -223,7 +224,6 @@ compile_glsl(
     HEADER_FILES
         ${SRC_SHARED}
         ${SRC_SHADERS_UTILS}
-        ${SRC_SHADERS_RAYTRACE_BXDF_UTILS}
     DST
         "${OUTPUT_PATH}/shaders"
     VULKAN_TARGET
@@ -274,8 +274,6 @@ target_sources(${PROJNAME} PUBLIC
     ${SRC_SHADERS_GRAPHICS}
     ${SRC_SHADERS_POST}
     ${SRC_SHADERS_RAYTRACE}
-    ${SRC_SHADERS_RAYTRACE_BXDF}
-    ${SRC_SHADERS_RAYTRACE_BXDF_UTILS}
     ${SRC_AUTOGEN}
 )
 # include directory
@@ -296,9 +294,8 @@ source_group("context" FILES ${SRC_CONTEXT})
 source_group("scene" FILES ${SRC_SCENE})
 source_group("pipeline" FILES ${SRC_PIPELINE})
 source_group("shared" FILES ${SRC_SHARED})
-source_group("shaders" FILES ${SRC_SHADERS_RAYTRACE} ${SRC_SHADERS_GRAPHICS} ${SRC_SHADERS_POST})
+source_group("shaders" FILES ${SRC_SHADERS_RAYTRACE} ${SRC_SHADERS_GRAPHICS})
 source_group("shaders\\utils" FILES ${SRC_SHADERS_UTILS})
-source_group("shaders\\bxdf" FILES ${SRC_SHADERS_RAYTRACE_BXDF} ${SRC_SHADERS_RAYTRACE_BXDF_UTILS})
 
 SET_PROPERTY(TARGET
   IexMath

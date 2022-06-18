@@ -9,10 +9,6 @@ struct GpuInstance {
   uint64_t vertexAddress;
   // Address of the index buffer
   uint64_t indexAddress;
-  // Address of the material buffer
-  uint64_t materialAddress;
-  // light index
-  int lightId;
 };
 
 // SceneDesc = GPUMeshDesc[] + GPUMaterialDesc[]

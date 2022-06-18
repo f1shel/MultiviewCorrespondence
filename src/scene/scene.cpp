@@ -25,34 +25,12 @@ void Scene::deinit() {
 
 void Scene::submit() {
   LOG_INFO("{}: submitting resources to gpu", "Scene");
-  LOG_INFO("{}: {} light(s), {} textures(s), {} material(s), {} mesh(es)",
-           "Scene", getLightsNum() - 1, getTexturesNum() - 1,
-           getMaterialsNum() - 1, getMeshesNum());
-
-  // configure pipeline state
-  m_pipelineState.rtxState.numLights = getLightsNum() - 1;
 
   auto& qGCT1 = m_pContext->getParallelQueues()[0];
   nvvk::CommandPool cmdBufGet(m_pContext->getDevice(), qGCT1.familyIndex,
                               VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
                               qGCT1.queue);
   VkCommandBuffer cmdBuf = cmdBufGet.createCommandBuffer();
-
-  allocLights(m_pContext, cmdBuf);
-
-  m_pTexturesAlloc.resize(getTexturesNum());
-  for (auto& record : m_pTextures) {
-    const auto& textureName = record.first;
-    auto [pTexture, textureId] = record.second;
-    allocTexture(m_pContext, textureId, textureName, pTexture, cmdBuf);
-  }
-
-  m_pMaterialsAlloc.resize(getMaterialsNum());
-  for (auto& record : m_pMaterials) {
-    const auto& materialName = record.first;
-    auto [pMaterial, materialId] = record.second;
-    allocMaterial(m_pContext, materialId, materialName, pMaterial, cmdBuf);
-  }
 
   m_pMeshesAlloc.resize(getMeshesNum());
   for (auto& record : m_pMeshes) {
@@ -61,12 +39,8 @@ void Scene::submit() {
     allocMesh(m_pContext, meshId, meshName, pMesh, cmdBuf);
   }
 
-  allocEnvMap(m_pContext, cmdBuf);
-
   // Keeping the mesh description at host and device
   allocInstances(m_pContext, cmdBuf);
-
-  allocSunAndSky(m_pContext, cmdBuf);
 
   cmdBufGet.submitAndWait(cmdBuf);
   m_pContext->getAlloc().finalizeAndReleaseStaging();
@@ -85,69 +59,12 @@ void Scene::reset() {
   if (m_hasScene) freeAllocData();
   freeRawData();
   m_hasScene = false;
-  // Add dummy envmap, texture, material and light so that pipeline
-  // compilation will not complain
-  const std::string& tn = "add_by_default_dummy_texture";
-  const std::string& mn = "add_by_default_dummy_material";
-  Texture* pTexture = new Texture;
-  Material* pMaterial = new Material;
-  m_pTextures[tn] = std::make_pair(pTexture, m_pTextures.size());
-  m_pMaterials[mn] = std::make_pair(pMaterial, m_pMaterials.size());
-  m_pEnvMap = new EnvMap;
-  GpuLight defaultLight = {
-      LightTypeDirectional,  // type
-      vec3(0.f),             // position
-      vec3(0.f),             // direction
-      vec3(0.f),             // radiance
-      vec3(0.f),             // u
-      vec3(0.f),             // v
-      0.f,                   // radius
-      0.f,                   // area
-      1,                     // double side
-  };
-  addLight(defaultLight);
-  m_sunAndSky = {
-      {1, 1, 1},            // rgb_unit_conversion;
-      0.0000101320f,        // multiplier;
-      0.0f,                 // haze;
-      0.0f,                 // redblueshift;
-      1.0f,                 // saturation;
-      0.0f,                 // horizon_height;
-      {0.4f, 0.4f, 0.4f},   // ground_color;
-      0.1f,                 // horizon_blur;
-      {0.0, 0.0, 0.01f},    // night_color;
-      0.8f,                 // sun_disk_intensity;
-      {0.00, 0.78, 0.62f},  // sun_direction;
-      5.0f,                 // sun_disk_scale;
-      1.0f,                 // sun_glow_intensity;
-      1,                    // y_is_up;
-      1,                    // physically_scaled_sun;
-      0,                    // in_use;
-  };
 }
 
 void Scene::freeAllocData() {
-  m_pLightsAlloc->deinit(m_pContext);
-  delete m_pLightsAlloc;
-  m_pLightsAlloc = nullptr;
-
-  m_pEnvMapAlloc->deinit(m_pContext);
-  delete m_pEnvMapAlloc;
-  m_pEnvMapAlloc = nullptr;
-
-  // free textures alloc data
-  for (auto& pTextureAlloc : m_pTexturesAlloc) {
-    pTextureAlloc->deinit(m_pContext);
-  }
-
   // free meshes alloc data
   for (auto& pMeshAlloc : m_pMeshesAlloc) {
     pMeshAlloc->deinit(m_pContext);
-  }
-
-  // free meshes alloc data
-  for (auto& pMaterialAlloc : m_pMaterialsAlloc) {
-    pMaterialAlloc->deinit(m_pContext);
   }
 
   // free scene desc alloc data
@@ -160,22 +77,10 @@ void Scene::freeAllocData() {
 }
 
 void Scene::freeRawData() {
-  // m_integrator = {};
-  m_pipelineState = {};
   delete m_pCamera;
   m_pCamera = nullptr;
-  delete m_pEnvMap;
-  m_pEnvMap = nullptr;
-  m_lights.clear();
   m_shots.clear();
   m_instances.clear();
-
-  for (auto& record : m_pTextures) {
-    const auto& valuePair = record.second;
-    auto pTexture = valuePair.first;
-    delete pTexture;
-  }
-  m_pTextures.clear();
 
   for (auto& record : m_pMeshes) {
     const auto& valuePair = record.second;
@@ -184,24 +89,7 @@ void Scene::freeRawData() {
   }
   m_pMeshes.clear();
 
-  for (auto& record : m_pMaterials) {
-    const auto& valuePair = record.second;
-    auto pMaterial = valuePair.first;
-    delete pMaterial;
-  }
-  m_pMaterials.clear();
 }
-
-void Scene::addState(const State& piplineState) {
-  m_pipelineState = piplineState;
-}
-
-// void Scene::addIntegrator(int spp, int maxRecur, ToneMappingType tmType, uint
-// useFaceNormal, uint ignoreEmissive, vec3 bgColor)
-//{
-//   m_integrator = Integrator(spp, maxRecur, tmType, useFaceNormal,
-//   ignoreEmissive, bgColor);
-// }
 
 void Scene::addCamera(VkExtent2D filmResolution, float fov, float focalDist,
                       float aperture) {
@@ -214,91 +102,6 @@ void Scene::addCamera(VkExtent2D filmResolution, vec4 fxfycxcy) {
   m_pCamera = new CameraOpencv(filmResolution, fxfycxcy);
 }
 
-void Scene::addLight(const GpuLight& light) {
-  static char lightMeshName[30];
-  Primitive prim;
-  int lightId = getLightsNum();
-  bool needMeshInst = false;
-  if (light.type == LightTypeRect) {
-    needMeshInst = true;
-    prim.type = PrimitiveTypeRect;
-    prim.position = light.position;
-    prim.u = light.u;
-    prim.v = light.v;
-    sprintf(lightMeshName, "__rectLight:%d", lightId);
-  }
-  if (needMeshInst) {
-    // add mesh
-    Mesh* pMesh = new Mesh(prim);
-    auto meshId = m_pMeshes.size();
-    m_pMeshes[std::string(lightMeshName)] = std::make_pair(pMesh, meshId);
-    m_mesh2light[meshId] = std::make_pair(true, lightId);
-    // add instance
-    m_instances.emplace_back(Instance(meshId, lightId));
-  }
-  // add light
-  m_lights.emplace_back(light);
-}
-
-void Scene::addLight(const GpuLight& light, const std::string& lightMeshPath) {
-  vector<GpuVertex> m_vertices{};
-  vector<uint> m_indices{};
-
-  loadMesh(lightMeshPath, m_vertices, m_indices);
-
-  // Add every facet of mesh as a triangle light
-  static char lightMeshName[40];
-  Primitive prim;
-  prim.type = PrimitiveTypeTriangle;
-  GpuLight light_ = light;
-  light_.type = LightTypeTriangle;
-  for (size_t i = 0; i < m_indices.size(); i += 3) {
-    GpuVertex& v0 = m_vertices[m_indices[i + 0]];
-    GpuVertex& v1 = m_vertices[m_indices[i + 1]];
-    GpuVertex& v2 = m_vertices[m_indices[i + 2]];
-
-    light_.position = prim.position = v0.pos;
-    light_.u = prim.u = v1.pos - v0.pos;
-    light_.v = prim.v = v2.pos - v0.pos;
-    light_.area = nvmath::length(nvmath::cross(light_.u, light_.v)) * 0.5f;
-    light_.doubleSide = 0;
-
-    // Add mesh
-    Mesh* pMesh = new Mesh(prim);
-    int lightId = getLightsNum();
-    auto meshId = m_pMeshes.size();
-    sprintf(lightMeshName, "__meshLight:%d", lightId);
-    m_pMeshes[std::string(lightMeshName)] = std::make_pair(pMesh, meshId);
-    m_mesh2light[meshId] = std::make_pair(true, lightId);
-
-    // Add instance
-    m_instances.emplace_back(Instance(meshId, lightId));
-
-    // add light
-    m_lights.emplace_back(light_);
-  }
-}
-
-void Scene::addEnvMap(const std::string& envmapPath) {
-  if (m_pEnvMap) delete m_pEnvMap;
-  m_pEnvMap = new EnvMap(envmapPath);
-  auto size = m_pEnvMap->getSize();
-  m_pipelineState.rtxState.hasEnvMap = 1;
-  m_pipelineState.rtxState.envMapResolution = vec2(size.width, size.height);
-}
-
-void Scene::addTexture(const std::string& textureName,
-                       const std::string& texturePath, float gamma) {
-  Texture* pTexture = new Texture(texturePath, gamma);
-  m_pTextures[textureName] = std::make_pair(pTexture, m_pTextures.size());
-}
-
-void Scene::addMaterial(const std::string& materialName,
-                        const GpuMaterial& material) {
-  Material* pMaterial = new Material(material);
-  m_pMaterials[materialName] = std::make_pair(pMaterial, m_pMaterials.size());
-}
-
 void Scene::addMesh(const std::string& meshName, const std::string& meshPath,
                     bool recomputeNormal, vec2 uvScale) {
   Mesh* pMesh = new Mesh(meshPath, recomputeNormal, uvScale);
@@ -306,10 +109,9 @@ void Scene::addMesh(const std::string& meshName, const std::string& meshPath,
 }
 
 void Scene::addInstance(const nvmath::mat4f& transform,
-                        const std::string& meshName,
-                        const std::string& materialName) {
+                        const std::string& meshName) {
   m_instances.emplace_back(
-      Instance(transform, getMeshId(meshName), getMaterialId(materialName)));
+      Instance(transform, getMeshId(meshName)));
 }
 
 void Scene::addShot(const CameraShot& shot) { m_shots.emplace_back(shot); }
@@ -324,83 +126,17 @@ int Scene::getMeshId(const std::string& meshName) {
   return 0;
 }
 
-int Scene::getTextureId(const std::string& textureName) {
-  if (m_pTextures.count(textureName))
-    return m_pTextures[textureName].second;
-  else {
-    LOG_ERROR("{}: texture [\"{}\"] does not exist\n", "Scene", textureName);
-    exit(1);
-  }
-  return 0;
-}
-
-int Scene::getMaterialId(const std::string& materialName) {
-  if (m_pMaterials.count(materialName))
-    return m_pMaterials[materialName].second;
-  else {
-    LOG_ERROR("{}: material [\"{}\"] does not exist\n", "Scene", materialName);
-    exit(1);
-  }
-  return 0;
-}
-
 int Scene::getMeshesNum() { return m_pMeshes.size(); }
 
 int Scene::getInstancesNum() { return m_instances.size(); }
-
-int Scene::getTexturesNum() { return m_pTextures.size(); }
-
-int Scene::getMaterialsNum() { return m_pMaterials.size(); }
-
-int Scene::getLightsNum() { return m_lights.size(); }
 
 int Scene::getShotsNum() { return m_shots.size(); }
 
 CameraShot& Scene::getShot(int shotId) { return m_shots[shotId]; }
 
-State& Scene::getPipelineState() { return m_pipelineState; }
-
-/*
-int Scene::getSpp()
-{
-  return m_integrator.getSpp();
-}
-*/
-
-void Scene::setSpp(int spp) { m_pipelineState.rtxState.spp = 1; }
-
-/*
-int Scene::getMaxPathDepth()
-{
-  return m_integrator.getMaxPathDepth();
-}
-
-uint Scene::getUseFaceNormal()
-{
-  return m_integrator.getUseFaceNormal();
-}
-uint Scene::getToneMappingType()
-{
-  return m_integrator.getToneMappingType();
-}
-uint Scene::getIgnoreEmissive()
-{
-  return m_integrator.getIgnoreEmissive();
-}
-
-vec3 Scene::getBackGroundColor()
-{
-  return m_integrator.getBackgroundColor();
-}
-*/
-
 Camera& Scene::getCamera() { return *m_pCamera; }
 
 CameraType Scene::getCameraType() { return m_pCamera->getType(); }
-
-MaterialType Scene::getMaterialType(uint matId) {
-  return m_pMaterialsAlloc[matId]->getType();
-}
 
 nvvk::RaytracingBuilderKHR::BlasInput Scene::getBlas(VkDevice device,
                                                      int meshId) {
@@ -415,64 +151,10 @@ VkBuffer Scene::getInstancesDescriptor() {
   return m_pInstancesAlloc->getBuffer();
 }
 
-VkDescriptorImageInfo Scene::getTextureDescriptor(int textureId) {
-  return m_pTexturesAlloc[textureId]->getTexture();
-}
-
-vector<VkDescriptorImageInfo> Scene::getEnvMapDescriptor() {
-  return {m_pEnvMapAlloc->getEnvMap(), m_pEnvMapAlloc->getMarginal(),
-          m_pEnvMapAlloc->getConditional()};
-}
-
-VkBuffer Scene::getLightsDescriptor() { return m_pLightsAlloc->getBuffer(); }
-
 VkBuffer Scene::getSunskyDescriptor() { return m_bSunAndSky.buffer; }
-
-GpuSunAndSky& Scene::getSunsky() { return m_sunAndSky; }
 
 void Scene::setShot(int shotId) {
   m_pCamera->setToWorld(m_shots[shotId]);
-  auto& state = m_shots[shotId].state;
-  // m_pipelineState.rtxState.curFrame         = state.rtxState.curFrame;
-  m_pipelineState.rtxState.spp = state.rtxState.spp;
-  m_pipelineState.rtxState.maxPathDepth = state.rtxState.maxPathDepth;
-  // m_pipelineState.rtxState.numLights        = state.rtxState.numLights;
-  m_pipelineState.rtxState.useFaceNormal = state.rtxState.useFaceNormal;
-  m_pipelineState.rtxState.ignoreEmissive = state.rtxState.ignoreEmissive;
-  // m_pipelineState.rtxState.hasEnvMap        = state.rtxState.hasEnvMap;
-  m_pipelineState.rtxState.envMapIntensity = state.rtxState.envMapIntensity;
-  // m_pipelineState.rtxState.envMapResolution =
-  // state.rtxState.envMapResolution;
-  m_pipelineState.rtxState.bgColor = state.rtxState.bgColor;
-  m_pipelineState.rtxState.envRotateAngle = state.rtxState.envRotateAngle;
-}
-
-void Scene::allocLights(ContextAware* pContext, const VkCommandBuffer& cmdBuf) {
-  m_pLightsAlloc = new LightsAlloc(pContext, m_lights, cmdBuf);
-}
-
-void Scene::allocTexture(ContextAware* pContext, uint32_t textureId,
-                         const std::string& textureName, Texture* pTexture,
-                         const VkCommandBuffer& cmdBuf) {
-  auto& m_debug = pContext->getDebug();
-  auto m_device = pContext->getDevice();
-
-  TextureAlloc* pTextureAlloc = new TextureAlloc(pContext, pTexture, cmdBuf);
-  m_pTexturesAlloc[textureId] = pTextureAlloc;
-}
-
-void Scene::allocMaterial(ContextAware* pContext, uint32_t materialId,
-                          const std::string& materialName, Material* pMaterial,
-                          const VkCommandBuffer& cmdBuf) {
-  auto& m_debug = pContext->getDebug();
-  auto m_device = pContext->getDevice();
-
-  MaterialAlloc* pMaterialAlloc =
-      new MaterialAlloc(pContext, pMaterial, cmdBuf);
-  m_pMaterialsAlloc[materialId] = pMaterialAlloc;
-
-  m_debug.setObjectName(pMaterialAlloc->getBuffer(),
-                        std::string(materialName + "_materialBuffer"));
 }
 
 void Scene::allocMesh(ContextAware* pContext, uint32_t meshId,
@@ -493,23 +175,7 @@ void Scene::allocMesh(ContextAware* pContext, uint32_t meshId,
 void Scene::allocInstances(ContextAware* pContext,
                            const VkCommandBuffer& cmdBuf) {
   // Keeping the obj host model and device description
-  m_pInstancesAlloc = new InstancesAlloc(pContext, m_instances, m_pMeshesAlloc,
-                                         m_pMaterialsAlloc, cmdBuf);
-}
-
-void Scene::allocEnvMap(ContextAware* pContext, const VkCommandBuffer& cmdBuf) {
-  m_pEnvMapAlloc = new EnvMapAlloc(pContext, m_pEnvMap, cmdBuf);
-}
-
-void Scene::allocSunAndSky(ContextAware* pContext,
-                           const VkCommandBuffer& cmdBuf) {
-  auto& m_alloc = pContext->getAlloc();
-  auto& m_debug = pContext->getDebug();
-  m_bSunAndSky = m_alloc.createBuffer(
-      sizeof(GpuSunAndSky),
-      VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-  NAME_VK(m_bSunAndSky.buffer);
+  m_pInstancesAlloc = new InstancesAlloc(pContext, m_instances, m_pMeshesAlloc, cmdBuf);
 }
 
 void Scene::computeSceneDimensions() {
@@ -544,5 +210,5 @@ void Scene::fitCamera() {
                   m_size.width / static_cast<float>(m_size.height));
   auto cam = CameraManip.getCamera();
   m_shots.emplace_back(CameraShot{cam.ctr, cam.eye, cam.up, nvmath::mat4f_zero,
-                                  nvmath::mat4f_id, getPipelineState()});
+                                  nvmath::mat4f_id});
 }

@@ -16,7 +16,6 @@ void PipelineRaytrace::init(ContextAware* pContext, Scene* pScene,
   createRtDescriptorSetLayout();
   bind(RtBindSet::RtAccel, &m_holdSetWrappers[uint(HoldSet::Accel)]);
   bind(RtBindSet::RtOut, pis.pDswOut);
-  bind(RtBindSet::RtEnv, pis.pDswEnv);
   bind(RtBindSet::RtScene, pis.pDswScene);
   createRtPipeline();
   updateRtDescriptorSet();
@@ -44,23 +43,21 @@ void PipelineRaytrace::run(const VkCommandBuffer& cmdBuf) {
 
   if (memcmp(&refCamMatrix.a00, &m.a00, sizeof(nvmath::mat4f)) != 0 ||
       refFov != fov) {
-    resetFrame();
     refCamMatrix = m;
     refFov = fov;
   }
-  incrementFrame();
 
   // Do ray tracing
   vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_pipeline);
   vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
                           m_pipelineLayout, 0, (uint32_t)m_bindSets.size(),
                           m_bindSets.data(), 0, nullptr);
+  static GpuPushConstantRaytrace rtsState = {};
   vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_ALL, 0,
-                     sizeof(GpuPushConstantRaytrace),
-                     &(m_pScene->getPipelineState().rtxState));
+                     sizeof(GpuPushConstantRaytrace), &rtsState);
 
   const auto& regions = m_sbt.getRegions();
-  auto size = m_pContext->getSize();
+  const auto size = m_pContext->getSize();
 
   // Run the ray tracing pipeline and trace rays
   vkCmdTraceRaysKHR(cmdBuf,       // Command buffer
@@ -71,18 +68,6 @@ void PipelineRaytrace::run(const VkCommandBuffer& cmdBuf) {
                     size.width,   // Width of dispatch
                     size.height,  // Height of dispatch
                     1);           // Depth of dispatch
-}
-
-void PipelineRaytrace::setSpp(int spp) {
-  m_pScene->getPipelineState().rtxState.spp = spp;
-}
-
-void PipelineRaytrace::resetFrame() {
-  m_pScene->getPipelineState().rtxState.curFrame = -1;
-}
-
-void PipelineRaytrace::incrementFrame() {
-  m_pScene->getPipelineState().rtxState.curFrame++;
 }
 
 void PipelineRaytrace::initRayTracing() {
@@ -122,8 +107,6 @@ void PipelineRaytrace::createTopLevelAS() {
   auto& instances = m_pScene->getInstances();
   for (uint32_t instId = 0; instId < m_pScene->getInstancesNum(); instId++) {
     auto& inst = instances[instId];
-    uint matId = inst.getMaterialIndex();
-    bool isLight = (inst.getLightIndex() >= 0);
     VkAccelerationStructureInstanceKHR rayInst{};
     rayInst.transform = nvvk::toTransformMatrixKHR(inst.getTransform());
     rayInst.instanceCustomIndex = 0;  // gl_InstanceCustomIndexEXT
@@ -131,13 +114,7 @@ void PipelineRaytrace::createTopLevelAS() {
         m_rtBuilder.getBlasDeviceAddress(inst.getMeshIndex());
     rayInst.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
     rayInst.mask = 0xFF;  // Only be hit if rayMask & instance.mask != 0
-    if (!isLight)
-      rayInst.instanceShaderBindingTableRecordOffset =
-          m_pScene->getMaterialType(
-              matId);  // material type determines closet hit shader
-    else
-      rayInst.instanceShaderBindingTableRecordOffset =
-          MaterialTypeBrdfLambertian;
+    rayInst.instanceShaderBindingTableRecordOffset = 0;
     m_tlas.emplace_back(rayInst);
   }
 
@@ -170,7 +147,7 @@ void PipelineRaytrace::createRtPipeline() {
 
   // Creating all shaders
   enum StageIndices { RayGen, RayMiss, ShadowMiss, NumStages };
-  array<VkPipelineShaderStageCreateInfo, NumStages + MaterialTypeNum> stages{};
+  array<VkPipelineShaderStageCreateInfo, NumStages + 1> stages{};
   // Raygen
   auto root = m_pContext->getRoot();
   auto stage = nvvk::make<VkPipelineShaderStageCreateInfo>();
@@ -200,67 +177,8 @@ void PipelineRaytrace::createRtPipeline() {
       m_device, nvh::loadFile("../shaders/raytrace.brdf_lambertian.rchit.spv",
                               true, {root}));
   stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBrdfLambertian] = stage;
+  stages[NumStages + 0] = stage;
   NAME2_VK(stage.module, "ClosetHit:BrdfLambertian");
-  // ClosetHit:BrdfEmissive
-  stage.module = nvvk::createShaderModule(
-      m_device, nvh::loadFile("../shaders/raytrace.brdf_emissive.rchit.spv",
-                              true, {root}));
-  stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBrdfEmissive] = stage;
-  NAME2_VK(stage.module, "ClosetHit:BrdfEmissive");
-  // ClosetHit:BrdfPbrMetalnessRoughness
-  stage.module = nvvk::createShaderModule(
-      m_device,
-      nvh::loadFile(
-          "../shaders/raytrace.brdf_pbr_metalness_roughness.rchit.spv", true,
-          {root}));
-  stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBrdfPbrMetalnessRoughness] = stage;
-  NAME2_VK(stage.module, "ClosetHit:BrdfPbrMetalnessRoughness");
-  // ClosetHit:BrdfKang18
-  stage.module = nvvk::createShaderModule(
-      m_device,
-      nvh::loadFile("../shaders/raytrace.brdf_kang18.rchit.spv", true, {root}));
-  stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBrdfKang18] = stage;
-  NAME2_VK(stage.module, "ClosetHit:BrdfKang18");
-  // ClosetHit:BrdfPlastic
-  stage.module = nvvk::createShaderModule(
-      m_device, nvh::loadFile("../shaders/raytrace.brdf_plastic.rchit.spv",
-                              true, {root}));
-  stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBrdfPlastic] = stage;
-  NAME2_VK(stage.module, "ClosetHit:BrdfPlastic");
-  // ClosetHit:BrdfRoughPlastic
-  stage.module = nvvk::createShaderModule(
-      m_device,
-      nvh::loadFile("../shaders/raytrace.brdf_rough_plastic.rchit.spv", true,
-                    {root}));
-  stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBrdfRoughPlastic] = stage;
-  NAME2_VK(stage.module, "ClosetHit:BrdfPlastic");
-  // ClosetHit:BrdfMirror
-  stage.module = nvvk::createShaderModule(
-      m_device,
-      nvh::loadFile("../shaders/raytrace.brdf_mirror.rchit.spv", true, {root}));
-  stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBrdfMirror] = stage;
-  NAME2_VK(stage.module, "ClosetHit:BrdfMirror");
-  // ClosetHit:BrdfConductor
-  stage.module = nvvk::createShaderModule(
-      m_device,
-      nvh::loadFile("../shaders/raytrace.brdf_conductor.rchit.spv", true, {root}));
-  stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBrdfConductor] = stage;
-  NAME2_VK(stage.module, "ClosetHit:BrdfConductor");
-  // ClosetHit:BsdfDielectric
-  stage.module = nvvk::createShaderModule(
-      m_device, nvh::loadFile("../shaders/raytrace.bsdf_dielectric.rchit.spv",
-                              true, {root}));
-  stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
-  stages[NumStages + MaterialTypeBsdfDielectric] = stage;
-  NAME2_VK(stage.module, "ClosetHit:BsdfDielectric");
   // Shader groups
   VkRayTracingShaderGroupCreateInfoKHR group =
       nvvk::make<VkRayTracingShaderGroupCreateInfoKHR>();
@@ -289,8 +207,7 @@ void PipelineRaytrace::createRtPipeline() {
   // closest hit shader
   group.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
   group.generalShader = VK_SHADER_UNUSED_KHR;
-  for (uint materialTypeId = 0; materialTypeId < MaterialTypeNum;
-       materialTypeId++) {
+  for (uint materialTypeId = 0; materialTypeId < 1; materialTypeId++) {
     group.closestHitShader = NumStages + materialTypeId;
     shaderGroups.push_back(group);
   }

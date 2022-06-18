@@ -27,9 +27,9 @@ void PipelinePost::run(const VkCommandBuffer& cmdBuf) {
   LABEL_SCOPE_VK(cmdBuf);
 
   m_pContext->setViewport(cmdBuf);
+  static GpuPushConstantPost postState{};
   vkCmdPushConstants(cmdBuf, m_pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0,
-                     sizeof(GpuPushConstantPost),
-                     &(m_pScene->getPipelineState().postState));
+                     sizeof(GpuPushConstantPost), &postState);
   vkCmdBindPipeline(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
   vkCmdBindDescriptorSets(cmdBuf, VK_PIPELINE_BIND_POINT_GRAPHICS,
                           m_pipelineLayout, 0, 1, m_bindSets.data(), 0,
@@ -38,23 +38,6 @@ void PipelinePost::run(const VkCommandBuffer& cmdBuf) {
 }
 
 void PipelinePost::deinit() { PipelineAware::deinit(); }
-
-/*
-void PipelinePost::initPushconstant()
-{
-  m_pushconstant.brightness     = 1.f;
-  m_pushconstant.contrast       = 1.f;
-  m_pushconstant.saturation     = 1.f;
-  m_pushconstant.vignette       = 0.f;
-  m_pushconstant.avgLum         = 1.f;
-  m_pushconstant.zoom           = 1.f;
-  m_pushconstant.renderingRatio = {1.f, 1.f};
-  m_pushconstant.autoExposure   = 0;
-  m_pushconstant.Ywhite         = 0.5f;
-  m_pushconstant.key            = 0.5f;
-  m_pushconstant.tmType         = m_pScene->getPipelineState().postState.tmType;
-}
-*/
 
 void PipelinePost::createPostDescriptorSetLayout() {
   auto m_device = m_pContext->getDevice();
@@ -112,8 +95,7 @@ void PipelinePost::updatePostDescriptorSet(
     const VkDescriptorImageInfo* pImageInfo) {
   auto m_device = m_pContext->getDevice();
 
-  m_postFrame = (m_postFrame + 1) % uint(HoldSet::Num);
-  auto& inputWrap = m_holdSetWrappers[m_postFrame];
+  auto& inputWrap = m_holdSetWrappers[uint(HoldSet::Input)];
   auto& inputBind = inputWrap.getDescriptorSetBindings();
   auto& inputPool = inputWrap.getDescriptorPool();
   auto& inputSet = inputWrap.getDescriptorSet();
@@ -127,5 +109,5 @@ void PipelinePost::updatePostDescriptorSet(
   wds.pImageInfo = pImageInfo;
   vkUpdateDescriptorSets(m_device, 1, &wds, 0, nullptr);
 
-  bind(PostBindSet::PostInput, {&m_holdSetWrappers[m_postFrame]});
+  bind(PostBindSet::PostInput, {&m_holdSetWrappers[uint(HoldSet::Input)]});
 }

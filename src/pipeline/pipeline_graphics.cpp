@@ -28,7 +28,6 @@ void PipelineGraphics::init(ContextAware* pContext, Scene* pScene) {
 
 void PipelineGraphics::run(const VkCommandBuffer& cmdBuf) {
   updateCameraBuffer(cmdBuf);
-  updateSunAndSky(cmdBuf);
 }
 
 void PipelineGraphics::deinit() {
@@ -95,11 +94,6 @@ void PipelineGraphics::updateCameraBuffer(const VkCommandBuffer& cmdBuf) {
                          VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 1,
                          &afterBarrier, 0, nullptr);
   }
-}
-
-void PipelineGraphics::updateSunAndSky(const VkCommandBuffer& cmdBuf) {
-  vkCmdUpdateBuffer(cmdBuf, m_pScene->getSunskyDescriptor(), 0,
-                    sizeof(GpuSunAndSky), &m_pScene->getSunsky());
 }
 
 void PipelineGraphics::createOffscreenResources() {
@@ -229,40 +223,10 @@ void PipelineGraphics::createGraphicsDescriptorSetLayout() {
       SceneBindings::SceneInstances, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
       VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT |
           VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
-  // Textures
-  sceneBind.addBinding(
-      SceneBindings::SceneTextures, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      m_pScene->getTexturesNum(),
-      VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
-  // Lights
-  sceneBind.addBinding(
-      SceneBindings::SceneLights, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1,
-      VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR);
   // Creation
   sceneLayout = sceneBind.createLayout(m_device);
   scenePool = sceneBind.createPool(m_device, 1);
   sceneSet = nvvk::allocateDescriptorSet(m_device, scenePool, sceneLayout);
-
-  // Env Set: S_SCENE
-  auto& envWrap = m_holdSetWrappers[uint(HoldSet::Env)];
-  auto& envBind = envWrap.getDescriptorSetBindings();
-  auto& envPool = envWrap.getDescriptorPool();
-  auto& envSet = envWrap.getDescriptorSet();
-  auto& envLayout = envWrap.getDescriptorSetLayout();
-  // SunAndSky
-  envBind.addBinding(
-      EnvBindings::EnvSunsky, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1,
-      VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
-          VK_SHADER_STAGE_MISS_BIT_KHR);
-  // Envmap Acceleration
-  envBind.addBinding(
-      EnvBindings::EnvAccelMap, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3,
-      VK_SHADER_STAGE_FRAGMENT_BIT | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR |
-          VK_SHADER_STAGE_MISS_BIT_KHR);
-  // Creation
-  envLayout = envBind.createLayout(m_device);
-  envPool = envBind.createPool(m_device, 1);
-  envSet = nvvk::allocateDescriptorSet(m_device, envPool, envLayout);
 }
 
 void PipelineGraphics::createCameraBuffer() {
@@ -295,38 +259,9 @@ void PipelineGraphics::updateGraphicsDescriptorSet() {
                                       VK_WHOLE_SIZE};
   writesScene.emplace_back(sceneBind.makeWrite(
       sceneSet, SceneBindings::SceneInstances, &dbiSceneDesc));
-  // All texture samplers
-  vector<VkDescriptorImageInfo> diit{};
-  diit.reserve(m_pScene->getTexturesNum());
-  for (uint textureId = 0; textureId < m_pScene->getTexturesNum(); textureId++)
-    diit.emplace_back(m_pScene->getTextureDescriptor(textureId));
-  writesScene.emplace_back(sceneBind.makeWriteArray(
-      sceneSet, SceneBindings::SceneTextures, diit.data()));
-  // Lights
-  VkDescriptorBufferInfo emittersInfo{m_pScene->getLightsDescriptor(), 0,
-                                      VK_WHOLE_SIZE};
-  writesScene.emplace_back(
-      sceneBind.makeWrite(sceneSet, SceneBindings::SceneLights, &emittersInfo));
   // Writing the information
   vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writesScene.size()),
                          writesScene.data(), 0, nullptr);
-
-  // S_ENV
-  auto& envWrap = m_holdSetWrappers[uint(HoldSet::Env)];
-  auto& envBind = envWrap.getDescriptorSetBindings();
-  auto& envPool = envWrap.getDescriptorPool();
-  auto& envSet = envWrap.getDescriptorSet();
-  auto& envLayout = envWrap.getDescriptorSetLayout();
-  vector<VkWriteDescriptorSet> writesEnv;
-  VkDescriptorBufferInfo dbiSunAndSky{m_pScene->getSunskyDescriptor(), 0,
-                                      VK_WHOLE_SIZE};
-  writesEnv.emplace_back(
-      envBind.makeWrite(envSet, EnvBindings::EnvSunsky, &dbiSunAndSky));
-  auto envmapDescInfos = m_pScene->getEnvMapDescriptor();
-  writesEnv.emplace_back(envBind.makeWriteArray(
-      envSet, EnvBindings::EnvAccelMap, envmapDescInfos.data()));
-  vkUpdateDescriptorSets(m_device, static_cast<uint32_t>(writesEnv.size()),
-                         writesEnv.data(), 0, nullptr);
 
   // Out Set: S_Out
   auto& outWrap = m_holdSetWrappers[uint(HoldSet::Out)];

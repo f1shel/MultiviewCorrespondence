@@ -25,14 +25,6 @@ static json defaultSceneOptions = json::parse(R"(
     "fov": 45.0,
     "aperture": 0.0,
     "focal_distance": 0.1
-  },
-  "textures": {
-    "gamma": 1.0
-  },
-  "materials": {
-  },
-  "envmap": {
-    "intensity": 1.0
   }
 }
 )");
@@ -89,43 +81,15 @@ void Loader::loadSceneFromJson(std::string sceneFilePath,
 }
 
 void Loader::parse(const nlohmann::json& sceneFileJson) {
-  JsonCheckKeys(sceneFileJson, {"state", "camera", "meshes", "instances"});
+  JsonCheckKeys(sceneFileJson, {"camera", "meshes", "instances"});
 
-  auto& stateJson = sceneFileJson["state"];
   auto& cameraJson = sceneFileJson["camera"];
   auto& meshesJson = sceneFileJson["meshes"];
   auto& instancesJson = sceneFileJson["instances"];
 
   // parse scene file to generate raw data
-  addState(stateJson);
   // camera
   addCamera(cameraJson);
-  // textures
-  if (sceneFileJson.contains("textures")) {
-    auto& texturesJson = sceneFileJson["textures"];
-    for (auto& textureJson : texturesJson) {
-      addTexture(textureJson);
-    }
-  }
-  // materials
-  if (sceneFileJson.contains("materials")) {
-    auto& materialsJson = sceneFileJson["materials"];
-    for (auto& materialJson : materialsJson) {
-      addMaterial(materialJson);
-    }
-  }
-  // lights
-  if (sceneFileJson.contains("lights")) {
-    auto& lightsJson = sceneFileJson["lights"];
-    for (auto& lightJson : lightsJson) {
-      addLight(lightJson);
-    }
-  }
-  // env map
-  if (sceneFileJson.contains("envmap")) {
-    auto& envmapJson = sceneFileJson["envmap"];
-    addEnvMap(envmapJson);
-  }
   // meshes
   for (auto& meshJson : meshesJson) {
     addMesh(meshJson);
@@ -144,63 +108,6 @@ void Loader::parse(const nlohmann::json& sceneFileJson) {
 }
 
 void Loader::submit() { m_pScene->submit(); }
-
-static void parseState(const nlohmann::json& stateJson, State& pipelineState) {
-  if (stateJson.contains("path_tracing")) {
-    const auto& ptJson = stateJson["path_tracing"];
-    auto& rtxState = pipelineState.rtxState;
-    if (ptJson.contains("spp")) rtxState.spp = ptJson["spp"];
-    if (ptJson.contains("max_path_depth"))
-      rtxState.maxPathDepth = ptJson["max_path_depth"];
-    if (ptJson.contains("use_face_normal"))
-      rtxState.useFaceNormal = ptJson["use_face_normal"] ? 1.f : 0.f;
-    if (ptJson.contains("ignore_emissive"))
-      rtxState.ignoreEmissive = ptJson["ignore_emissive"] ? 1.f : 0.f;
-    if (ptJson.contains("background_color"))
-      rtxState.bgColor = Json2Vec3(ptJson["background_color"]);
-    if (ptJson.contains("envmap_intensity"))
-      rtxState.envMapIntensity = ptJson["envmap_intensity"];
-    if (ptJson.contains("envmap_rotate"))
-      rtxState.envRotateAngle = ptJson["envmap_rotate"];
-  }
-
-  if (stateJson.contains("post_processing")) {
-    const auto& postJson = stateJson["post_processing"];
-    auto& postState = pipelineState.postState;
-    string strToneMapping = "";
-    if (postJson.contains("tone_mapping"))
-      strToneMapping = postJson["tone_mapping"];
-
-    ToneMappingType tmType = ToneMappingTypeNone;
-    if (strToneMapping == "none")
-      tmType = ToneMappingTypeNone;
-    else if (strToneMapping == "gamma")
-      tmType = ToneMappingTypeGamma;
-    else if (strToneMapping == "reinhard")
-      tmType = ToneMappingTypeReinhard;
-    else if (strToneMapping == "Aces")
-      tmType = ToneMappingTypeAces;
-    else if (strToneMapping == "filmic")
-      tmType = ToneMappingTypeFilmic;
-    else if (strToneMapping == "pbrt")
-      tmType = ToneMappingTypePbrt;
-    else if (strToneMapping == "custom")
-      tmType = ToneMappingTypeCustom;
-    else
-      LOG_WARN(
-          "{}: no matching tone mapper for [{}], use default"
-          "Loader",
-          strToneMapping);
-
-    postState.tmType = tmType;
-  }
-}
-
-void Loader::addState(const nlohmann::json& stateJson) {
-  State pipelineState;
-  parseState(stateJson, pipelineState);
-  m_pScene->addState(pipelineState);
-}
 
 void Loader::addCamera(const nlohmann::json& cameraJson) {
   JsonCheckKeys(cameraJson, {"type", "film"});
@@ -228,88 +135,6 @@ void Loader::addCamera(const nlohmann::json& cameraJson) {
               cameraJson["type"]);
     exit(1);
   }
-}
-
-void Loader::addLight(const nlohmann::json& lightJson) {
-  JsonCheckKeys(lightJson, {"type", "radiance"});
-  GpuLight light = {
-      LightTypeUndefined,  // type
-      vec3(0.0),           // position
-      vec3(0.0),           // direction
-      vec3(0.0),           // radiance
-      vec3(0.0),           // u
-      vec3(0.0),           // v
-      0.0,                 // radius
-      0.0,                 // area
-      0,                   // double side
-  };
-  light.radiance = Json2Vec3(lightJson["radiance"]);
-  if (lightJson["type"] == "rect" || lightJson["type"] == "triangle") {
-    JsonCheckKeys(lightJson, {"position", "v1", "v2"});
-    vec3 v1 = Json2Vec3(lightJson["v1"]);
-    vec3 v2 = Json2Vec3(lightJson["v2"]);
-    light.position = Json2Vec3(lightJson["position"]);
-    light.u = v1 - light.position;
-    light.v = v2 - light.position;
-    light.area = nvmath::length(nvmath::cross(light.u, light.v));
-    light.type = LightTypeRect;
-    if (lightJson.contains("double_side"))
-      light.doubleSide = lightJson["double_side"] ? 1 : 0;
-    if (lightJson["type"] == "triangle") light.area *= 0.5f;
-  }
-  //   else if(lightJson["type"] == "sphere")
-  //   {
-  //     JsonCheckKeys(lightJson, {"position", "radius"});
-  //     light.position = Json2Vec3(lightJson["position"]);
-  //     light.radius   = lightJson["radius"];
-  //     light.area     = 4.0f * PI * light.radius * light.radius;
-  //     light.type     = GpuLightType::eSphereLight;
-  //   }
-  // else if (lightJson["type"] == "point")
-  //{
-  //    JsonCheckKeys(lightJson, {"position", "radius"});
-  //    light.position = Json2Vec3(lightJson["position"]);
-  //    light.radius   = lightJson["radius"];
-  //    light.area     = 4.0f * PI * light.radius * light.radius;
-  //    light.type     = GpuLightType::eSphereLight;
-  //}
-  else if (lightJson["type"] == "distant") {
-    JsonCheckKeys(lightJson, {"direction"});
-    light.direction = Json2Vec3(lightJson["direction"]);
-    light.type = LightTypeDirectional;
-  } else if (lightJson["type"] == "mesh") {
-    JsonCheckKeys(lightJson, {"path"});
-    string meshPath = lightJson["path"];
-    meshPath = nvh::findFile(meshPath, {m_sceneFileDir});
-    if (meshPath.empty()) {
-      LOG_ERROR("{}: failed to load mesh light from [{}]", "Loader",
-                lightJson["path"]);
-      exit(1);
-    }
-    light.type = LightTypeTriangle;
-    m_pScene->addLight(light, meshPath);
-    return;
-  } else {
-    LOG_ERROR("{}: unrecognized light type [{}]", "Loader", lightJson["type"]);
-    exit(1);
-  }
-
-  m_pScene->addLight(light);
-}
-
-void Loader::addTexture(const nlohmann::json& textureJson) {
-  JsonCheckKeys(textureJson, {"name", "path"});
-  std::string textureName = textureJson["name"];
-  auto texturePath = nvh::findFile(textureJson["path"], {m_sceneFileDir}, true);
-  if (texturePath.empty()) {
-    LOG_ERROR("{}: failed to load texture from file [{%s}]", "Loader",
-              textureJson["path"]);
-    exit(1);
-  }
-  float gamma = defaultSceneOptions["textures"]["gamma"];
-  if (textureJson.contains("gamma")) gamma = textureJson["gamma"];
-
-  m_pScene->addTexture(textureName, texturePath, gamma);
 }
 
 void Loader::addMesh(const nlohmann::json& meshJson) {
@@ -363,15 +188,11 @@ static void parseToWorld(const json& toworldJson, mat4& transform,
 
 void Loader::addInstance(const nlohmann::json& instanceJson) {
   JsonCheckKeys(instanceJson, {"mesh"});
-  string meshName = instanceJson["mesh"], materialName;
-  if (instanceJson.count("material"))
-    materialName = instanceJson["material"];
-  else
-    materialName = defaultSceneOptions["materials"]["name"];
+  string meshName = instanceJson["mesh"];
   nvmath::mat4f transform = nvmath::mat4f_id;
   if (instanceJson.contains("toworld"))
     parseToWorld(instanceJson["toworld"], transform);
-  m_pScene->addInstance(transform, meshName, materialName);
+  m_pScene->addInstance(transform, meshName);
 }
 
 void Loader::addShot(const nlohmann::json& shotJson) {
@@ -399,27 +220,9 @@ void Loader::addShot(const nlohmann::json& shotJson) {
   shot.eye = eye;
   shot.up = up;
   shot.lookat = lookat;
-  shot.state = m_pScene->getPipelineState();  // default state
-
-  if (shotJson.contains("state")) {
-    const auto& stateJson = shotJson["state"];
-    State& pipelineState = shot.state;
-    parseState(stateJson, pipelineState);
-  }
 
   if (shotJson.contains("env_toworld"))
     parseToWorld(shotJson["env_toworld"], shot.envTransform, true);
 
   m_pScene->addShot(shot);
-}
-
-void Loader::addEnvMap(const nlohmann::json& envmapJson) {
-  JsonCheckKeys(envmapJson, {"path"});
-  auto texturePath = nvh::findFile(envmapJson["path"], {m_sceneFileDir}, true);
-  if (texturePath.empty()) {
-    LOG_ERROR("{}: failed to load envmap from file [{%s}]", "Loader",
-              envmapJson["path"]);
-    exit(1);
-  }
-  m_pScene->addEnvMap(texturePath);
 }

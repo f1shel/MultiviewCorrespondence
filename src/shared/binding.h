@@ -30,8 +30,7 @@ START_ENUM(RtBindSet)
   RtAccel = 0,  // Acceleration structure
   RtOut   = 1,  // Offscreen output image
   RtScene = 2,  // Scene data
-  RtEnv   = 3,  // Environment / Sun & Sky
-  RtNum   = 4
+  RtNum   = 3
 END_ENUM();
 
 START_ENUM(PostBindSet)
@@ -52,15 +51,7 @@ END_ENUM();
 // Scene Data - Set 2
 START_ENUM(SceneBindings)
   SceneCamera    = 0, 
-  SceneInstances = 1, 
-  SceneLights    = 2,            
-  SceneTextures  = 3  // must be last elem            
-END_ENUM();
-
-// Environment - Set 3
-START_ENUM(EnvBindings)
-  EnvSunsky = 0,
-  EnvAccelMap = 1
+  SceneInstances = 1
 END_ENUM();
 
 START_ENUM(InputBindings)

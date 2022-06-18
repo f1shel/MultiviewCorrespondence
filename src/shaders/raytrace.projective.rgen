@@ -33,7 +33,7 @@ void main() {
 
   // Multiple samples per frame and finally average them
   vec3 radiance = vec3(0.f);
-  for (uint i = 0; i < pc.spp; ++i) {
+  for (uint i = 0; i < 1; ++i) {
     // Disturb around the pixel center
     vec2 jitter = pc.curFrame == 0 ? vec2(0.5) : vec2(rand2(payload.pRec.seed));
     vec2 pixel = pixelCenter + jitter;
@@ -80,7 +80,7 @@ void main() {
     payload.mRec.albedo = vec3(0.0);
     payload.mRec.normal = vec3(0.0);
 
-    for (payload.pRec.depth = 1; payload.pRec.depth <= pc.maxPathDepth;
+    for (payload.pRec.depth = 1; payload.pRec.depth <= 1;
          payload.pRec.depth++) {
       // Initialize direct light setting
       payload.dRec.skip = true;

@@ -10,8 +10,7 @@ public:
   enum class HoldSet {
     Scene = 0,
     Out = 1,
-    Env = 2,
-    Num = 3,
+    Num = 2,
   };
   PipelineGraphics()
       : PipelineAware(uint(HoldSet::Num), RasterBindSet::RasterNum) {}
@@ -19,7 +18,6 @@ public:
   virtual void run(const VkCommandBuffer& cmdBuf);
   virtual void deinit();
   void updateCameraBuffer(const VkCommandBuffer& cmdBuf);
-  void updateSunAndSky(const VkCommandBuffer& cmdBuf);
   VkDescriptorImageInfo& getHdrOutImageInfo() {
     return m_tColors[0].descriptor;
   }
@@ -28,13 +26,6 @@ public:
   }
   DescriptorSetWrapper& getSceneDescriptorSet() {
     return m_holdSetWrappers[uint(HoldSet::Scene)];
-  }
-  DescriptorSetWrapper& getEnvDescriptorSet() {
-    return m_holdSetWrappers[uint(HoldSet::Env)];
-  }
-  // GpuPushConstantGraphics& getPushconstant() { return m_pushconstant; }
-  GpuPushConstantGraphics& getPushconstant() {
-    return m_pScene->getPipelineState().graphicsState;
   }
   nvvk::Texture& getColorTexture(uint textureId) {
     return m_tColors[textureId];

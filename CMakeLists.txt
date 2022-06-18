@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.9.6)
 set_property(
     DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
     PROPERTY VS_STARTUP_PROJECT
-    asuna)
-project(asuna)
+    MultiviewCorrespondence)
+project(MultiviewCorrespondence)
 if(WIN32 AND NOT GLUT_FOUND)
   add_definitions(/wd4996) #remove printf warning
   add_definitions(/wd4244) #remove double to float conversion warning
@@ -62,8 +62,6 @@ endif()
 # Packages
 _add_package_VulkanSDK()
 _add_package_ImGUI()
-_add_package_Cuda()
-_add_package_Optix7()
 if(MSVC)
     add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 endif()
@@ -98,10 +96,6 @@ set_property(TARGET Imath IlmImf PROPERTY CXX_STANDARD 14)
 #--------------------------------------------------------------------------------------------------
 # SpdLog
 target_include_directories(${PROJNAME} PRIVATE ${THIRD_PARTY_DIR}/spdlog/include)
-
-#--------------------------------------------------------------------------------------------------
-# OptiX
-target_include_directories(${PROJNAME} PRIVATE ${OPTIX_INCLUDE_DIR})
 
 INCLUDE_DIRECTORIES (
   ${THIRD_PARTY_DIR}/openexr/IlmBase/Imath

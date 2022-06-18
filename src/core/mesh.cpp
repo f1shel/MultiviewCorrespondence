@@ -15,39 +15,6 @@ static void updateAabb(const GpuVertex& v, vec3& posMin, vec3& posMax) {
   posMax.z = std::max(posMax.z, v.pos.z);
 }
 
-Mesh::Mesh(Primitive& prim) {
-  if (prim.type == PrimitiveTypeRect) {
-    m_vertices.resize(4);
-    m_indices.resize(6);
-    /*
-     * 0________1
-     * |        |
-     * |________|
-     * 3        2
-     */
-    m_vertices[0].pos = prim.position;
-    m_vertices[1].pos = prim.position + prim.u;
-    m_vertices[2].pos = prim.position + prim.u + prim.v;
-    m_vertices[3].pos = prim.position + prim.v;
-    m_indices = {0, 1, 2, 0, 2, 3};
-
-  } else if (prim.type == PrimitiveTypeTriangle) {
-    m_vertices.resize(3);
-    m_indices.resize(3);
-    /*
-     * 0__1
-     * | /
-     * |/
-     * 2
-     */
-    m_vertices[0].pos = prim.position;
-    m_vertices[1].pos = prim.position + prim.u;
-    m_vertices[2].pos = prim.position + prim.v;
-    m_indices = {0, 1, 2};
-  }
-  for (auto& i : m_vertices) updateAabb(i, m_posMin, m_posMax);
-}
-
 Mesh::Mesh(const std::string& meshPath, bool recomputeNormal, vec2 uvScale) {
   m_vertices.clear();
   m_indices.clear();

@@ -3,7 +3,6 @@
 #include <shared/camera.h>
 #include <nvh/cameramanipulator.hpp>
 #include <vulkan/vulkan_core.h>
-#include "state.h"
 
 typedef struct {
   vec3 lookat{0.0};
@@ -11,7 +10,6 @@ typedef struct {
   vec3 up{0.0};
   mat4 ext{0.0};
   mat4 envTransform{nvmath::mat4f_id};
-  State state;
 } CameraShot;
 
 class Camera {

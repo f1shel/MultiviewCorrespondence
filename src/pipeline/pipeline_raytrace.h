@@ -23,13 +23,6 @@ public:
                     PipelineRaytraceInitSetting& pis);
   virtual void deinit();
   virtual void run(const VkCommandBuffer& cmdBuf);
-  GpuPushConstantRaytrace& getPushconstant() {
-    return m_pScene->getPipelineState().rtxState;
-  }
-  void setSpp(int spp = 1);
-  void resetFrame();
-  void incrementFrame();
-  int getFrame() { return getPushconstant().curFrame; }
 
 private:
   void initRayTracing();       // Request ray tracing pipeline properties

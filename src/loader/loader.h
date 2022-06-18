@@ -20,15 +20,10 @@ private:
   void submit();
 
 private:
-  void addState(const nlohmann::json& stateJson);
   void addCamera(const nlohmann::json& cameraJson);
-  void addLight(const nlohmann::json& lightJson);
-  void addTexture(const nlohmann::json& textureJson);
-  void addMaterial(const nlohmann::json& materialJson);
   void addMesh(const nlohmann::json& meshJson);
   void addInstance(const nlohmann::json& instanceJson);
   void addShot(const nlohmann::json& shotJson);
-  void addEnvMap(const nlohmann::json& envmapJson);
 
 private:
   Scene* m_pScene = nullptr;

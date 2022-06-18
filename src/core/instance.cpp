@@ -4,7 +4,6 @@
 InstancesAlloc::InstancesAlloc(ContextAware* pContext,
                                vector<Instance>& instances,
                                vector<MeshAlloc*>& meshAllocs,
-                               vector<MaterialAlloc*>& materialAllocs,
                                const VkCommandBuffer& cmdBuf) {
   auto& m_alloc = pContext->getAlloc();
   auto m_device = pContext->getDevice();
@@ -15,12 +14,6 @@ InstancesAlloc::InstancesAlloc(ContextAware* pContext,
         nvvk::getBufferDeviceAddress(m_device, pMeshAlloc->getVerticesBuffer());
     desc.indexAddress =
         nvvk::getBufferDeviceAddress(m_device, pMeshAlloc->getIndicesBuffer());
-    desc.lightId = instance.getLightIndex();
-    if (desc.lightId < 0) {
-      auto pMaterialAlloc = materialAllocs[instance.getMaterialIndex()];
-      desc.materialAddress =
-          nvvk::getBufferDeviceAddress(m_device, pMaterialAlloc->getBuffer());
-    }
     m_instances.emplace_back(desc);
   }
   m_bInstances = m_alloc.createBuffer(cmdBuf, m_instances,

@@ -5,7 +5,6 @@
 #include <nvvk/raytraceKHR_vk.hpp>
 #include "alloc.h"
 #include "bounding_box.h"
-#include "primitive.h"
 
 #include <map>
 #include <string>
@@ -16,7 +15,6 @@ void loadMesh(const std::string& meshPath, vector<GpuVertex>& vertices,
 
 class Mesh {
 public:
-  Mesh(Primitive& prim);
   Mesh(const std::string& meshPath, bool recomputeNormal = false,
        vec2 uvScale = {1.f, 1.f});
   uint getVerticesNum() { return m_vertices.size(); }

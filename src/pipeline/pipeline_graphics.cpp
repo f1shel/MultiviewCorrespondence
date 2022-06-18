@@ -50,13 +50,17 @@ void PipelineGraphics::updateCameraBuffer(const VkCommandBuffer& cmdBuf) {
   // Upload updated camera information to GPU
   // Prepare new UBO contents on host.
   auto m_size = m_pContext->getSize();
-  const float aspectRatio = m_size.width / static_cast<float>(m_size.height);
-  GpuCamera hostCamera = {};
-  // proj[1][1] *= -1;  // Inverting Y for Vulkan (not needed with
-  // perspectiveVK).
+  GpuCameraPair hostCamera = {};
 
-  auto& cam = m_pScene->getCamera();
-  hostCamera = cam.toGpuStruct();
+  auto [ref, src] = m_pScene->getPair();
+
+  m_pScene->setShot(ref);
+  auto& camRef = m_pScene->getCamera();
+  hostCamera.ref = camRef.toGpuStruct();
+
+  m_pScene->setShot(src);
+  auto& camSrc = m_pScene->getCamera();
+  hostCamera.src = camSrc.toGpuStruct();
 
   // UBO on the device, and what stages access it.
   VkBuffer deviceUBO = m_bCamera.buffer;
@@ -71,7 +75,7 @@ void PipelineGraphics::updateCameraBuffer(const VkCommandBuffer& cmdBuf) {
     beforeBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
     beforeBarrier.buffer = deviceUBO;
     beforeBarrier.offset = 0;
-    beforeBarrier.size = sizeof(GpuCamera);
+    beforeBarrier.size = sizeof(GpuCameraPair);
     vkCmdPipelineBarrier(cmdBuf, uboUsageStages, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 1,
                          &beforeBarrier, 0, nullptr);
@@ -79,7 +83,7 @@ void PipelineGraphics::updateCameraBuffer(const VkCommandBuffer& cmdBuf) {
 
   // Schedule the host-to-device upload. (hostUBO is copied into the cmd
   // buffer so it is okay to deallocate when the function returns).
-  vkCmdUpdateBuffer(cmdBuf, m_bCamera.buffer, 0, sizeof(GpuCamera),
+  vkCmdUpdateBuffer(cmdBuf, m_bCamera.buffer, 0, sizeof(GpuCameraPair),
                     &hostCamera);
 
   if (!m_pContext->getOfflineMode()) {
@@ -89,7 +93,7 @@ void PipelineGraphics::updateCameraBuffer(const VkCommandBuffer& cmdBuf) {
     afterBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
     afterBarrier.buffer = deviceUBO;
     afterBarrier.offset = 0;
-    afterBarrier.size = sizeof(hostCamera);
+    afterBarrier.size = sizeof(GpuCameraPair);
     vkCmdPipelineBarrier(cmdBuf, VK_PIPELINE_STAGE_TRANSFER_BIT, uboUsageStages,
                          VK_DEPENDENCY_DEVICE_GROUP_BIT, 0, nullptr, 1,
                          &afterBarrier, 0, nullptr);
@@ -234,7 +238,7 @@ void PipelineGraphics::createCameraBuffer() {
   auto& m_debug = m_pContext->getDebug();
 
   m_bCamera = m_alloc.createBuffer(
-      sizeof(GpuCamera),
+      sizeof(GpuCameraPair),
       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   m_debug.setObjectName(m_bCamera.buffer, "Camera");

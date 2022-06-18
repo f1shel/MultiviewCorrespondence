@@ -1,0 +1,77 @@
+{
+  "camera": {
+    "type": "perspective",
+    "fov": 19.5,
+    "film": {
+      "resolution": [720, 720]
+    }
+  },
+  "meshes": [
+    {
+      "name": "ceiling",
+      "path": "ceiling.obj"
+    },
+    {
+      "name": "floor",
+      "path": "floor.obj"
+    },
+    {
+      "name": "leftwall",
+      "path": "leftwall.obj"
+    },
+    {
+      "name": "rightwall",
+      "path": "rightwall.obj"
+    },
+    {
+      "name": "backwall",
+      "path": "backwall.obj"
+    },
+    {
+      "name": "shortbox",
+      "path": "shortbox.obj"
+    },
+    {
+      "name": "tallbox",
+      "path": "tallbox.obj"
+    }
+  ],
+  "instances": [
+    {
+      "mesh": "floor"
+    },
+    {
+      "mesh": "ceiling"
+    },
+    {
+      "mesh": "leftwall"
+    },
+    {
+      "mesh": "rightwall"
+    },
+    {
+      "mesh": "backwall"
+    },
+    {
+      "mesh": "shortbox"
+    },
+    {
+      "mesh": "tallbox"
+    }
+  ],
+  "shots": [
+    {
+      "type": "lookat",
+      "eye": [0, 1, 6.8],
+      "lookat": [0, 1, 0],
+      "up": [0, 1, 0]
+    },
+    {
+      "type": "lookat",
+      "eye": [1.145, 4.38, 8.735],
+      "lookat": [0.0, 1.0, 0.0],
+      "up": [0.0, 1.0, 0.0]
+    }
+  ],
+  "pairs": [{ "ref": 0, "src": 1 }]
+}

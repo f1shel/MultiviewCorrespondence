@@ -17,7 +17,13 @@ struct GpuCamera {
   mat4 cameraToWorld;
   mat4 worldToRaster;
   vec4 fxfycxcy;  // [focal_xy, center_xy], for opencv model
-  uint type;            // camera type
+  vec3 padding;   // This is very important!!!
+  uint type;      // camera type
+};
+
+struct GpuCameraPair {
+  GpuCamera ref;
+  GpuCamera src;
 };
 
 #endif

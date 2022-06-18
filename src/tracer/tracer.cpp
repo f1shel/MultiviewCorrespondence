@@ -67,7 +67,7 @@ void Tracer::runOnline() {
     {
       vkBeginCommandBuffer(cmdBuf, &beginInfo);
 
-      // Update camera and sunsky
+      // Update camera pairs
       m_pipelineGraphics.run(cmdBuf);
 
       // Ray tracing
@@ -126,11 +126,9 @@ void Tracer::runOffline() {
   nvvk::CommandPool genCmdBuf(ContextAware::getDevice(),
                               ContextAware::getQueueFamily());
 
-  // Multi-view rendering
-  int shotsNum = m_scene.getShotsNum();
-  for (int shotId = 0; shotId < shotsNum; shotId++) {
-    // Set camera pose and state of pipelines
-    m_scene.setShot(shotId);
+  auto pairsNum = m_scene.getPairsNum();
+  for (int pairId = 0; pairId < pairsNum; pairId++) {
+    m_scene.setCurrentPair(pairId);
 
     const VkCommandBuffer& cmdBuf = genCmdBuf.createCommandBuffer();
 
@@ -158,9 +156,7 @@ void Tracer::runOffline() {
 
     // Save image
     static char outputName[50];
-    sprintf(outputName, "%s_shot_%04d.png", m_tis.outputname.c_str(), shotId);
-    saveBufferToImage(pixelBuffer, outputName);
-    sprintf(outputName, "%s_shot_%04d.exr", m_tis.outputname.c_str(), shotId);
+    sprintf(outputName, "%s_pair_%04d.exr", m_tis.outputname.c_str(), pairId);
     saveBufferToImage(pixelBuffer, outputName, 0);
   }
   // Destroy temporary buffer
@@ -236,5 +232,7 @@ void Tracer::saveBufferToImage(nvvk::Buffer pixelBuffer, std::string outputpath,
 
   // Write the image to disk
   void* data = m_alloc.map(pixelBuffer);
+  writeImage(outputpath.c_str(), m_size.width, m_size.height,
+             reinterpret_cast<float*>(data));
   m_alloc.unmap(pixelBuffer);
 }

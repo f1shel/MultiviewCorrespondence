@@ -45,7 +45,8 @@ VkExtent2D Loader::loadSizeFirst(std::string sceneFilePath,
   json sceneFileJson;
   sceneFileStream >> sceneFileJson;
 
-  JsonCheckKeys(sceneFileJson, {"state", "camera", "meshes", "instances"});
+  // Multiview correspondence
+  JsonCheckKeys(sceneFileJson, {"camera", "meshes", "instances", "shots", "pairs"});
   auto& cameraJson = sceneFileJson["camera"];
   JsonCheckKeys(cameraJson, {"type", "film"});
   auto& filmJson = cameraJson["film"];
@@ -81,7 +82,9 @@ void Loader::loadSceneFromJson(std::string sceneFilePath,
 }
 
 void Loader::parse(const nlohmann::json& sceneFileJson) {
-  JsonCheckKeys(sceneFileJson, {"camera", "meshes", "instances"});
+  JsonCheckKeys(sceneFileJson,
+                // Multiview corresnpondence
+                {"camera", "meshes", "instances", "shots", "pairs"});
 
   auto& cameraJson = sceneFileJson["camera"];
   auto& meshesJson = sceneFileJson["meshes"];
@@ -99,11 +102,15 @@ void Loader::parse(const nlohmann::json& sceneFileJson) {
     addInstance(instanceJson);
   }
   // shots
-  if (sceneFileJson.contains("shots")) {
-    auto& shotsJson = sceneFileJson["shots"];
-    for (auto& shotJson : shotsJson) {
-      addShot(shotJson);
-    }
+  auto& shotsJson = sceneFileJson["shots"];
+  for (auto& shotJson : shotsJson) {
+    addShot(shotJson);
+  }
+  // Multiview corresnpondence
+  // pairs
+  auto& pairsJson = sceneFileJson["pairs"];
+  for (auto& pairJson : pairsJson) {
+    addPair(pairJson);
   }
 }
 
@@ -222,4 +229,12 @@ void Loader::addShot(const nlohmann::json& shotJson) {
   shot.lookat = lookat;
 
   m_pScene->addShot(shot);
+}
+
+// Multiview corresnpondence
+void Loader::addPair(const nlohmann::json& pairJson) {
+  JsonCheckKeys(pairJson, {"ref", "src"});
+  int ref = pairJson["ref"];
+  int src = pairJson["src"];
+  m_pScene->addPair(ref, src);
 }

@@ -6,6 +6,7 @@
 #include <core/instance.h>
 #include <core/integrator.h>
 #include <core/mesh.h>
+#include <core/texture.h>
 #include <ext/json.hpp>
 
 #include <map>
@@ -73,4 +74,19 @@ private:
   void allocInstances(ContextAware* pContext, const VkCommandBuffer& cmdBuf);
   void computeSceneDimensions();
   void fitCamera();
+
+  // Multiview correspondence
+public:
+  vector<std::pair<int, int>> m_pairViews = {};
+  int m_curPairId = 0;
+
+  void addPair(int ref, int src) {
+    m_pairViews.emplace_back(std::make_pair(ref, src));
+  }
+  std::pair<int, int> getPair(int pairId = -1) {
+    if (pairId < 0) return m_pairViews[m_curPairId];
+    return m_pairViews[pairId];
+  }
+  void setCurrentPair(int pairId) { m_curPairId = pairId; }
+  uint getPairsNum() { return m_pairViews.size(); }
 };

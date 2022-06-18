@@ -28,4 +28,8 @@ private:
 private:
   Scene* m_pScene = nullptr;
   string m_sceneFileDir = "";
+
+  // Multiview correspondence
+private:
+  void addPair(const nlohmann::json& shotJson);
 };

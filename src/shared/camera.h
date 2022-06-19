@@ -15,6 +15,7 @@ END_ENUM();
 struct GpuCamera {
   mat4 rasterToCamera;
   mat4 cameraToWorld;
+  mat4 worldToCamera;
   mat4 worldToRaster;
   vec4 fxfycxcy;  // [focal_xy, center_xy], for opencv model
   vec3 padding;   // This is very important!!!

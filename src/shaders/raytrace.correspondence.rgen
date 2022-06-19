@@ -55,9 +55,19 @@ void main() {
 
     // Transform ray to world space
     rayDir = transformDirection(camRef.cameraToWorld, r);
-  }
+  } else if (camRef.type == CameraTypeOpencv) {
+    rayOrigin = camRefOrigin;
 
-  // TODO: add opencv camera
+    vec4 fxfycxcy = camRef.fxfycxcy;
+    vec2 pRaster;
+    pRaster.x = (pixelRefView.x - fxfycxcy.z) / fxfycxcy.x;
+    pRaster.y = (pixelRefView.y - fxfycxcy.w) / fxfycxcy.y;
+
+    vec3 r = vec3(pRaster, 1.f);
+
+    // Transform ray to world space
+    rayDir = transformDirection(camRef.cameraToWorld, r);
+  }
 
   // Path trace
   payload.r = Ray(rayOrigin, rayDir);
@@ -82,7 +92,18 @@ void main() {
     isShadowed = true;
     traceRayEXT(tlas, shadowRayFlags, 0xFF, 0, 0, 1, o, 0.0, d, maxDist, 1);
     if (!isShadowed) {
-      vec3 pixelSrcView = transformPoint(camSrc.worldToRaster, payload.hitPos);
+      vec3 pixelSrcView;
+
+      if (camSrc.type == CameraTypePerspective) {
+        pixelSrcView = transformPoint(camSrc.worldToRaster, refHit);
+      } else if (camSrc.type == CameraTypeOpencv) {
+        vec4 fxfycxcy = camSrc.fxfycxcy;
+        vec3 hitInCameraSpace = transformPoint(camSrc.worldToCamera, refHit);
+        hitInCameraSpace.xy /= hitInCameraSpace.z;
+        pixelSrcView.x = fxfycxcy.z + fxfycxcy.x * hitInCameraSpace.x;
+        pixelSrcView.y = fxfycxcy.w + fxfycxcy.y * hitInCameraSpace.y;
+        pixelSrcView.z = 1.0;
+      }
 
       vec2 flow = pixelSrcView.xy - pixelRefView;
 

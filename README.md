@@ -1,5 +1,7 @@
 # MultiviewCorrespondence
 
+Given a scene composed of mesh instances and a pair of reference view and source view, this project generates pixelwise correspondence between these views.
+
 This project is based on [Asuna](https://github.com/f1shel/Asuna), commit id `b80e9e3f86ab9f27babe394955becba77c84868b`.
 
 Scene description file is quite similar with Asuna, except that some parts (e.g. material, textures, lights) are ignored when loading and parsing json. The most important change is that now you need to specify pair (reference view and source view) in the scene description file, like this:

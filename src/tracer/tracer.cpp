@@ -162,7 +162,8 @@ void Tracer::runOffline() {
 
     // Save image
     static char outputName[50];
-    sprintf(outputName, "%s_pair_%04d.exr", m_tis.outputname.c_str(), pairId);
+    auto [ref, src] = m_scene.getPair(pairId);
+    sprintf(outputName, "%s_ref_%04d_src_%04d.exr", m_tis.outputname.c_str(), ref, src);
     saveBufferToImage(pixelBuffer, outputName, 0);
   }
 

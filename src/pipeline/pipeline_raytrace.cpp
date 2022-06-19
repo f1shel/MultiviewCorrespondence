@@ -153,8 +153,8 @@ void PipelineRaytrace::createRtPipeline() {
   auto stage = nvvk::make<VkPipelineShaderStageCreateInfo>();
   stage.pName = "main";  // All the same entry point
   stage.module = nvvk::createShaderModule(
-      m_device,
-      nvh::loadFile("../shaders/raytrace.projective.rgen.spv", true, {root}));
+      m_device, nvh::loadFile("../shaders/raytrace.correspondence.rgen.spv",
+                              true, {root}));
   stage.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
   stages[RayGen] = stage;
   NAME2_VK(stage.module, "RayGen");
@@ -174,8 +174,8 @@ void PipelineRaytrace::createRtPipeline() {
   NAME2_VK(stage.module, "Shadowmiss");
   // ClosetHit:BrdfLambertian
   stage.module = nvvk::createShaderModule(
-      m_device, nvh::loadFile("../shaders/raytrace.correspondence.rchit.spv",
-                              true, {root}));
+      m_device,
+      nvh::loadFile("../shaders/raytrace.intersect.rchit.spv", true, {root}));
   stage.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
   stages[NumStages + 0] = stage;
   NAME2_VK(stage.module, "ClosetHit:BrdfLambertian");

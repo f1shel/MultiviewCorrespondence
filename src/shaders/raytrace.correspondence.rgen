@@ -21,6 +21,12 @@ layout(set = RtScene, binding = SceneCamera)          uniform _Camera   { GpuCam
 layout(location = 0) rayPayloadEXT RayPayload payload;
 layout(location = 1) rayPayloadEXT bool isShadowed;
 
+void printfMatrix(mat4 matrix) {
+  mat4 rowMajor = transpose(matrix);
+  debugPrintfEXT("\n   %v4f\n   %v4f\n   %v4f\n   %v4f\n", rowMajor[0],
+                 rowMajor[1], rowMajor[2], rowMajor[3]);
+}
+
 void main() {
   GpuCamera camRef = cameraPairInfo.ref;
   GpuCamera camSrc = cameraPairInfo.src;
@@ -41,7 +47,7 @@ void main() {
     rayOrigin = camRefOrigin;
 
     // Compute raster and camera sample positions
-    vec3 pFilm = vec3(pixelRefView, 0.1f);
+    vec3 pFilm = vec3(pixelRefView, 0.f);
     vec3 pCamera = transformPoint(camRef.rasterToCamera, pFilm);
 
     // Treat point as direction since camera origin is at (0,0,0)
@@ -65,24 +71,20 @@ void main() {
   // of correspondence flow
   vec3 radiance = vec3(0, 0, 0);
   if (payload.hitSomething) {
-    vec3 o = offsetPositionAlongNormal(payload.hitPos, payload.ffnormal);
+    vec3 refHit = payload.hitPos;
+    vec3 o = offsetPositionAlongNormal(refHit, payload.ffnormal);
     float dist = length(camSrcOrigin - o);
     vec3 d = makeNormal(camSrcOrigin - o);
 
-    const uint rayFlags =
+    const uint shadowRayFlags =
         gl_RayFlagsTerminateOnFirstHitEXT | gl_RayFlagsSkipClosestHitShaderEXT;
     float maxDist = dist - EPS;
     isShadowed = true;
-    traceRayEXT(tlas, rayFlags, 0xFF, 0, 0, 1, o, 0.0, d, maxDist, 1);
+    traceRayEXT(tlas, shadowRayFlags, 0xFF, 0, 0, 1, o, 0.0, d, maxDist, 1);
     if (!isShadowed) {
       vec3 pixelSrcView = transformPoint(camSrc.worldToRaster, payload.hitPos);
-      // pixelSrcView.xy /= pixelSrcView.z;
 
       vec2 flow = pixelSrcView.xy - pixelRefView;
-
-      //      debugPrintfEXT("ref=%v2f,src=%v2f | ref=%v3f,src=%v3f\n",
-      //      pixelRefView,
-      //                     pixelSrcView.xy, -rayDir, d);
 
       radiance = vec3(flow, 1.0);
     }

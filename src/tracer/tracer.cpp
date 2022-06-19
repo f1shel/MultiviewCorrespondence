@@ -6,6 +6,7 @@
 #include <nvvk/context_vk.hpp>
 #include <nvvk/images_vk.hpp>
 #include <nvvk/structs_vk.hpp>
+#include <ext/tqdm.h>
 
 #include <filesystem>
 #include <iostream>
@@ -127,8 +128,13 @@ void Tracer::runOffline() {
                               ContextAware::getQueueFamily());
 
   auto pairsNum = m_scene.getPairsNum();
+  
+  tqdm bar;
+  bar.set_theme_arrow();
+
   for (int pairId = 0; pairId < pairsNum; pairId++) {
     m_scene.setCurrentPair(pairId);
+    bar.progress(pairId, pairsNum);
 
     const VkCommandBuffer& cmdBuf = genCmdBuf.createCommandBuffer();
 
@@ -159,6 +165,9 @@ void Tracer::runOffline() {
     sprintf(outputName, "%s_pair_%04d.exr", m_tis.outputname.c_str(), pairId);
     saveBufferToImage(pixelBuffer, outputName, 0);
   }
+
+  bar.finish();
+
   // Destroy temporary buffer
   m_alloc.destroy(pixelBuffer);
 }

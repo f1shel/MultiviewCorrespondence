@@ -9,7 +9,7 @@ Scene description file is quite similar with Asuna, except that some parts (e.g.
     view0, view1, view2
 ], "pairs": [
     {"ref": 0, "src": 1},
-	{"ref": 0, "src": 2}
+    {"ref": 0, "src": 2}
 ]
 ```
 

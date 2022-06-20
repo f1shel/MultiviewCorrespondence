@@ -40,4 +40,5 @@ Example visualization program is under demo folder.
 
 ## Todo
 
-- [ ] Add camera from OpenCV extrinsic and intrinsic parameter
+- [x] Add camera from OpenCV intrinsic parameter
+- [ ] Shot from extrinsic parameter (unverified)

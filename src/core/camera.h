@@ -8,7 +8,7 @@ typedef struct {
   vec3 lookat{0.0};
   vec3 eye{0.0};
   vec3 up{0.0};
-  mat4 ext{0.0};
+  mat4 ext{0};
 } CameraShot;
 
 class Camera {
@@ -32,7 +32,7 @@ public:
 
 protected:
   CameraType m_type{CameraTypeUndefined};
-  mat4 m_view{0.0f};  // world to camera space transformation
+  mat4 m_view{0};  // world to camera space transformation
   VkExtent2D m_size{0, 0};
 };
 

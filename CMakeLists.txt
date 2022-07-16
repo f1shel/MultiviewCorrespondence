@@ -31,7 +31,7 @@ message(STATUS "Processing Project ${PROJNAME}:")
 
 #--------------------------------------------------------------------------------------------------
 # C++ target and defines
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 14)
 add_executable(${PROJNAME})
 
 if(MSVC)
@@ -78,6 +78,10 @@ SET(ZLIB_LIBRARY zlibstatic)
 SET_PROPERTY(TARGET zlibstatic PROPERTY FOLDER "ext")
 INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIR} "${CMAKE_CURRENT_BINARY_DIR}/src/ext/zlib")
 INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
+
+#--------------------------------------------------------------------------------------------------
+# Filesystem
+target_include_directories(${PROJNAME} PRIVATE ${THIRD_PARTY_DIR}/filesystem)
 
 #--------------------------------------------------------------------------------------------------
 # OpenEXR

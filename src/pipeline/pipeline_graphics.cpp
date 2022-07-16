@@ -52,7 +52,9 @@ void PipelineGraphics::updateCameraBuffer(const VkCommandBuffer& cmdBuf) {
   auto m_size = m_pContext->getSize();
   GpuCameraPair hostCamera = {};
 
-  auto [ref, src] = m_pScene->getPair();
+  auto pairRefSrc = m_pScene->getPair();
+  auto ref = pairRefSrc.first;
+  auto src = pairRefSrc.second;
 
   m_pScene->setShot(ref);
   auto& camRef = m_pScene->getCamera();

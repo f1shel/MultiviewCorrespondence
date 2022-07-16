@@ -35,7 +35,8 @@ void Scene::submit() {
   m_pMeshesAlloc.resize(getMeshesNum());
   for (auto& record : m_pMeshes) {
     const auto& meshName = record.first;
-    auto [pMesh, meshId] = record.second;
+    auto pMesh = record.second.first;
+    auto meshId = record.second.second;
     allocMesh(m_pContext, meshId, meshName, pMesh, cmdBuf);
   }
 
@@ -88,7 +89,6 @@ void Scene::freeRawData() {
     delete pMesh;
   }
   m_pMeshes.clear();
-
 }
 
 void Scene::addCamera(VkExtent2D filmResolution, float fov, float focalDist,
@@ -110,8 +110,7 @@ void Scene::addMesh(const std::string& meshName, const std::string& meshPath,
 
 void Scene::addInstance(const nvmath::mat4f& transform,
                         const std::string& meshName) {
-  m_instances.emplace_back(
-      Instance(transform, getMeshId(meshName)));
+  m_instances.emplace_back(Instance(transform, getMeshId(meshName)));
 }
 
 void Scene::addShot(const CameraShot& shot) { m_shots.emplace_back(shot); }
@@ -145,7 +144,10 @@ nvvk::RaytracingBuilderKHR::BlasInput Scene::getBlas(VkDevice device,
 
 vector<Instance>& Scene::getInstances() { return m_instances; }
 
-VkExtent2D Scene::getSize() { return m_pCamera->getFilmSize(); }
+VkExtent2D Scene::getSize() {
+  return m_pContext->getSize();
+  // return m_pCamera->getFilmSize();
+}
 
 VkBuffer Scene::getInstancesDescriptor() {
   return m_pInstancesAlloc->getBuffer();
@@ -153,9 +155,7 @@ VkBuffer Scene::getInstancesDescriptor() {
 
 VkBuffer Scene::getSunskyDescriptor() { return m_bSunAndSky.buffer; }
 
-void Scene::setShot(int shotId) {
-  m_pCamera->setToWorld(m_shots[shotId]);
-}
+void Scene::setShot(int shotId) { m_pCamera->setToWorld(m_shots[shotId]); }
 
 void Scene::allocMesh(ContextAware* pContext, uint32_t meshId,
                       const std::string& meshName, Mesh* pMesh,
@@ -175,7 +175,8 @@ void Scene::allocMesh(ContextAware* pContext, uint32_t meshId,
 void Scene::allocInstances(ContextAware* pContext,
                            const VkCommandBuffer& cmdBuf) {
   // Keeping the obj host model and device description
-  m_pInstancesAlloc = new InstancesAlloc(pContext, m_instances, m_pMeshesAlloc, cmdBuf);
+  m_pInstancesAlloc =
+      new InstancesAlloc(pContext, m_instances, m_pMeshesAlloc, cmdBuf);
 }
 
 void Scene::computeSceneDimensions() {
@@ -209,5 +210,6 @@ void Scene::fitCamera() {
   CameraManip.fit(m_dimensions.min, m_dimensions.max, true, false,
                   m_size.width / static_cast<float>(m_size.height));
   auto cam = CameraManip.getCamera();
-  m_shots.emplace_back(CameraShot{cam.ctr, cam.eye, cam.up, nvmath::mat4f_zero});
+  m_shots.emplace_back(
+      CameraShot{cam.ctr, cam.eye, cam.up, nvmath::mat4f_zero});
 }

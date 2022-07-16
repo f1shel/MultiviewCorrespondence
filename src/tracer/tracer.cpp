@@ -8,10 +8,10 @@
 #include <nvvk/structs_vk.hpp>
 #include <ext/tqdm.h>
 
-#include <filesystem>
 #include <iostream>
 
-using std::filesystem::path;
+#include <filesystem/path.h>
+using namespace filesystem;
 
 void Tracer::init(TracerInitSettings tis) {
   m_tis = tis;
@@ -162,7 +162,9 @@ void Tracer::runOffline() {
 
     // Save image
     static char outputName[50];
-    auto [ref, src] = m_scene.getPair(pairId);
+    auto pairRefSrc = m_scene.getPair(pairId);
+    auto ref = pairRefSrc.first;
+    auto src = pairRefSrc.second;
     sprintf(outputName, "%s_ref_%04d_src_%04d.exr", m_tis.outputname.c_str(), ref, src);
     saveBufferToImage(pixelBuffer, outputName, 0);
   }
@@ -226,7 +228,7 @@ void Tracer::vkTextureToBuffer(const nvvk::Texture& imgIn,
 void Tracer::saveBufferToImage(nvvk::Buffer pixelBuffer, std::string outputpath,
                                int channelId) {
   auto fp = path(outputpath);
-  bool isRelativePath = fp.is_relative();
+  bool isRelativePath = !fp.is_absolute();
   if (isRelativePath) outputpath = NVPSystem::exePath() + outputpath;
 
   auto& m_alloc = ContextAware::getAlloc();

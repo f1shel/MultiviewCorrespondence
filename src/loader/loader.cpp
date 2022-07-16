@@ -2,6 +2,8 @@
 #include "utils.h"
 #include <shared/camera.h>
 #include <shared/pushconstant.h>
+#include <filesystem/path.h>
+using namespace filesystem;
 
 #include <nvmath/nvmath.h>
 #include <nvh/fileoperations.hpp>
@@ -17,7 +19,6 @@
 using nlohmann::json;
 using std::ifstream;
 using std::string;
-using std::filesystem::path;
 
 static json defaultSceneOptions = json::parse(R"(
 {
@@ -31,7 +32,7 @@ static json defaultSceneOptions = json::parse(R"(
 
 VkExtent2D Loader::loadSizeFirst(std::string sceneFilePath,
                                  const std::string& root) {
-  bool isRelativePath = path(sceneFilePath).is_relative();
+  bool isRelativePath = !path(sceneFilePath).is_absolute();
   if (isRelativePath)
     sceneFilePath = nvh::findFile(sceneFilePath, {root}, true);
   if (sceneFilePath.empty()) {
@@ -39,7 +40,7 @@ VkExtent2D Loader::loadSizeFirst(std::string sceneFilePath,
               sceneFilePath);
     exit(1);
   }
-  m_sceneFileDir = path(sceneFilePath).parent_path().string();
+  m_sceneFileDir = path(sceneFilePath).parent_path().str();
 
   ifstream sceneFileStream(sceneFilePath);
   json sceneFileJson;
@@ -61,7 +62,7 @@ void Loader::loadSceneFromJson(std::string sceneFilePath,
                                const std::string& root, Scene* pScene) {
   LOG_INFO("{}: loading scene assets, this may take tens of seconds", "Loader");
 
-  bool isRelativePath = path(sceneFilePath).is_relative();
+  bool isRelativePath = !path(sceneFilePath).is_absolute();
   if (isRelativePath)
     sceneFilePath = nvh::findFile(sceneFilePath, {root}, true);
   if (sceneFilePath.empty()) {
@@ -69,7 +70,7 @@ void Loader::loadSceneFromJson(std::string sceneFilePath,
               sceneFilePath);
     exit(1);
   }
-  m_sceneFileDir = path(sceneFilePath).parent_path().string();
+  m_sceneFileDir = path(sceneFilePath).parent_path().str();
 
   ifstream sceneFileStream(sceneFilePath);
   json sceneFileJson;

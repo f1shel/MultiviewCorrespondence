@@ -161,7 +161,7 @@ void Tracer::runOffline() {
     vkDeviceWaitIdle(ContextAware::getDevice());
 
     // Save image
-    static char outputName[50];
+    static char outputName[200];
     auto pairRefSrc = m_scene.getPair(pairId);
     auto ref = pairRefSrc.first;
     auto src = pairRefSrc.second;

@@ -10,6 +10,7 @@ struct TracerInitSettings {
   bool offline = false;
   string scenefile = "";
   string outputname = "";
+  int gpuId = 0;
 };
 
 class Tracer : public ContextAware {

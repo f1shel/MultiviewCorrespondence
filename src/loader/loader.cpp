@@ -213,18 +213,19 @@ void Loader::addShot(const nlohmann::json& shotJson) {
     lookat = Json2Vec3(shotJson["lookat"]);
     up = Json2Vec3(shotJson["up"]);
   } else if (shotJson["type"] == "opencv") {
-    JsonCheckKeys(shotJson, {"matrix", "up"});
+    JsonCheckKeys(shotJson, {"matrix"});
     ext = Json2Mat4(shotJson["matrix"]);
-    // ext.a00 = -ext.a00, ext.a01 = -ext.a01, ext.a02 = -ext.a02, ext.a03 =
-    // -ext.a03; ext.a20 = -ext.a20, ext.a21 = -ext.a21, ext.a22 = -ext.a22,
-    // ext.a23 = -ext.a23;
+    auto cameraToWorld = nvmath::invert_rot_trans(ext);
+    cameraToWorld.get_translation(eye);
+    up = vec3(cameraToWorld * vec4(0, -1, 0, 0));
+    lookat = vec3(cameraToWorld * vec4(0, 0, 1, 1));
   } else {
     LOG_ERROR("{}: unrecognized shot type [{}]", "Loader", shotJson["type"]);
     exit(1);
   }
 
   CameraShot shot;
-  shot.ext = ext;
+  //shot.ext = ext;
   shot.eye = eye;
   shot.up = up;
   shot.lookat = lookat;
